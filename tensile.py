@@ -22,10 +22,11 @@ def get_sample_params(path):
 def importer(path):
     df = pd.read_csv(path+file, dtype=np.float32, skiprows=10, delimiter=';',decimal=',', names=['time','extension','load', 'strain1'])
     df = df.drop(columns=['time'])
-    min_strain1 = df['strain1'].min()
-    min_ext = df['extension'].min()
-    # df['strain1'] = df['strain1'] - min_strain1
-    # df['extension'] = df['extension'] - min_ext
+    min_strain1 = df.head()['strain1'].min()
+    min_ext = df.head()['extension'].min()
+    df['strain1'] = df['strain1'] - min_strain1
+    #df = df['strain1'].drop(df[df['strain1'] > 0])
+    df['extension'] = df['extension'] - min_ext
     return df
 
 def calc_stress(load, area):
@@ -46,7 +47,8 @@ def calc_slope(df, strain_min_limit, strain_max_limit):
     df['stress_linear_offset'] = slope * (df['strain1'] - 0.002) + intercept                                        # Extend stress vals and offset them
     return df
 
-ax = plt.subplot()
+
+fig, axs = plt.subplots(2)
 
 for file in os.listdir(path):
     if file.endswith('.csv'):
@@ -58,11 +60,14 @@ for file in os.listdir(path):
         idx = calc_yield(df['stress_linear_offset'],df['stress'])
         print(sample_params['label'])
         print(df['stress'][idx].min())
-        #ax.scatter(x='strain1', y="stress", c='black', s=1)
-        #plt.plot(df['strain1'], df["stress_linear_offset"], linewidth=1)
-        #plt.scatter(df['strain1'][idx], df['stress'][idx], s=5, c='red')
-        plt.xlim(0, 0.06)
-        plt.ylim(0, 500)
-
+        axs[0].scatter(df['strain1'], df["stress"], s=0.5)
+        axs[0].plot(df['strain1'], df["stress_linear_offset"], linewidth=0.2)
+        axs[0].scatter(df['strain1'][idx], df['stress'][idx], s=15, marker='x', c='red')
+        axs[1].scatter(df['strain'], df['stress'], s=0.2)
+        axs[0].set_xlim(0, 0.06)
+        axs[0].set_ylim(0, 500)
+        axs[1].set_xlim(0, 0.2)
+        axs[1].set_ylim(0, 500)
+        
 plt.show()
 
