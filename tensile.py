@@ -37,8 +37,8 @@ def calc_strain(extension, length):
     strain = extension/length
     return strain
 
-def calc_yield(stress_offset, stress):
-    return np.argwhere(np.diff(np.sign(stress_offset - stress))).flatten()
+def calc_total_elongation(df):
+    return df['strain'][-1]
 
 def calc_slope(df, strain_min_limit, strain_max_limit):
     df['linear_range'] = (df['strain1'] >= strain_min_limit) & (df['strain1'] <= strain_max_limit)                  # Separate linear region based on strain_min and strain_max limits
@@ -46,6 +46,9 @@ def calc_slope(df, strain_min_limit, strain_max_limit):
     slope, intercept, r_value, p_value, std_err = stats.linregress(filtered_df['strain1'], filtered_df['stress'])   # Calculate slope of the linear region
     df['stress_linear_offset'] = slope * (df['strain1'] - 0.002) + intercept                                        # Extend stress vals and offset them
     return df
+
+def calc_yield(stress_offset, stress):
+    return np.argwhere(np.diff(np.sign(stress_offset - stress))).flatten()
 
 def calc_true_strain(strain):
     true_strain = np.log(1 + strain)
@@ -55,8 +58,9 @@ def calc_true_stress(stress, strain):
     true_stress = stress * (1 + strain)
     return true_stress
 
+
 fig, axs = plt.subplots(2)
-counter = 0
+
 for file in os.listdir(path):
     if file.endswith('.csv'):
         df = importer(path)
@@ -64,9 +68,13 @@ for file in os.listdir(path):
         #if '02.02' in sample_params['label']:
         df['stress'] = calc_stress(df['load'], sample_params['area'])
         df['strain'] = calc_strain(df['extension'], sample_params['length'])
+        df['true stress'] = calc_true_stress(df['stress'], df['strain'])
+        df['true strain'] = calc_true_strain(df['strain'])
         df = calc_slope(df, strain_min_limit=0.001, strain_max_limit=0.002)
         idx = calc_yield(df['stress_linear_offset'],df['stress'])
-        print(sample_params['label'] + ';' + str(df['stress'][idx].min()))
+        df['label'] = sample_params['label']
+        df['path'] = path+file
+        print(sample_params['label'] + ';' + str(np.round(df['stress'][idx].min(), 2)) + ';' + str(np.round(df['strain'].iloc[-1]*100, 2)))
         axs[0].scatter(df['strain1'], df["stress"], s=0.5, label=sample_params['label']+ ' ' + file)
         axs[0].plot(df['strain1'], df["stress_linear_offset"], linewidth=0.2)
         axs[0].scatter(df['strain1'][idx], df['stress'][idx], s=15, marker='x', c='red')
