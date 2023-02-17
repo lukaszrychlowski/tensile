@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats
-
-path = '/Users/ryszard/Downloads/13.01_seg_10-11_ekstensometr/'
+import mplcursors
+path = '/Users/ryszard/Downloads/Specimen_RawData_7/'
 
 def get_sample_params(path):
     df = pd.read_csv(path+file, nrows=5, delimiter=';',decimal=',', names=['time','extension','load', 'strain1'])
@@ -47,27 +47,35 @@ def calc_slope(df, strain_min_limit, strain_max_limit):
     df['stress_linear_offset'] = slope * (df['strain1'] - 0.002) + intercept                                        # Extend stress vals and offset them
     return df
 
+def calc_true_strain(strain):
+    true_strain = np.log(1 + strain)
+    return true_strain
+
+def calc_true_stress(stress, strain):
+    true_stress = stress * (1 + strain)
+    return true_stress
 
 fig, axs = plt.subplots(2)
-
+counter = 0
 for file in os.listdir(path):
     if file.endswith('.csv'):
         df = importer(path)
         sample_params = get_sample_params(path)
+        #if '02.02' in sample_params['label']:
         df['stress'] = calc_stress(df['load'], sample_params['area'])
         df['strain'] = calc_strain(df['extension'], sample_params['length'])
         df = calc_slope(df, strain_min_limit=0.001, strain_max_limit=0.002)
         idx = calc_yield(df['stress_linear_offset'],df['stress'])
-        print(sample_params['label'])
-        print(df['stress'][idx].min())
-        axs[0].scatter(df['strain1'], df["stress"], s=0.5)
+        print(sample_params['label'] + ';' + str(df['stress'][idx].min()))
+        axs[0].scatter(df['strain1'], df["stress"], s=0.5, label=sample_params['label']+ ' ' + file)
         axs[0].plot(df['strain1'], df["stress_linear_offset"], linewidth=0.2)
         axs[0].scatter(df['strain1'][idx], df['stress'][idx], s=15, marker='x', c='red')
-        axs[1].scatter(df['strain'], df['stress'], s=0.2)
+        axs[1].scatter(df['strain'], df['stress'], s=0.2,label=sample_params['label']+ ' ' + file)
         axs[0].set_xlim(0, 0.06)
-        axs[0].set_ylim(0, 500)
+        axs[0].set_ylim(0, 550)
         axs[1].set_xlim(0, 0.2)
-        axs[1].set_ylim(0, 500)
-        
+        axs[1].set_ylim(0, 550)
+
+mplcursors.cursor(highlight=True).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))   
 plt.show()
 
